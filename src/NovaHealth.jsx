@@ -618,6 +618,7 @@ function HomeTab({ t, setTab }) {
           >
             <div style={{ fontSize: 13.5, fontWeight: 700, color: "#000000", marginBottom: 4 }}>{label}</div>
             <div style={{ fontSize: 12, color: t.sub, lineHeight: 1.4 }}>{desc}</div>
+            <div style={{ fontSize: 13, color: t.sub, marginTop: 8 }}>→</div>
           </button>
         ))}
       </div>
