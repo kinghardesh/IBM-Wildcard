@@ -2031,23 +2031,14 @@ function UrgentTab({ t }) {
     setPhotoLoading(true);
     try {
       const [, mediaType, base64Data] = preview.match(/^data:(.+);base64,(.+)$/);
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("http://localhost:5001/api/analyze-photo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 300,
-          messages: [{
-            role: "user",
-            content: [
-              { type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } },
-              { type: "text", text: "Describe only the visible, objective characteristics of what's shown (location on body if visible, color, texture, size if estimable, any swelling or discoloration). Do not diagnose or guess a condition. Write it as short bullet points a person could text to their doctor." },
-            ],
-          }],
-        }),
+        body: JSON.stringify({ mediaType, base64Data }),
       });
       const data = await res.json();
-      setPhotoSummary(data?.content?.find(c => c.type === "text")?.text || "Could not generate a summary.");
+      if (!res.ok) throw new Error(data?.error || "Request failed.");
+      setPhotoSummary(data?.summary || "Could not generate a summary.");
     } catch {
       setPhotoSummary("Something went wrong analyzing the photo. Please try again.");
     } finally {

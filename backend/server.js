@@ -12,7 +12,7 @@ app.use(
   })
 );
 
-app.use(express.json({ limit: "100kb" }));
+app.use(express.json({ limit: "10mb" }));
 
 // Cache the IBM access token so a new one is not requested for every message.
 let cachedToken = null;
@@ -220,6 +220,47 @@ async function sendMessageToWatsonx({ mode, messages }) {
 
   return assistantMessage;
 }
+
+// Analyze-photo route (uses Google Gemini vision)
+app.post("/api/analyze-photo", async (request, response) => {
+  try {
+    const { mediaType, base64Data } = request.body || {};
+    if (!mediaType || !base64Data) {
+      return response.status(400).json({ error: "mediaType and base64Data are required." });
+    }
+
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { inline_data: { mime_type: mediaType, data: base64Data } },
+              { text: "You are helping a patient describe a medical photo to their doctor. Look at this image and write 3-5 short bullet points describing only what you can objectively see: body part/location, color, texture, size, swelling, or any visible changes. Do not diagnose, do not suggest conditions. Start directly with the bullet points, no intro sentence." },
+            ],
+          }],
+          generationConfig: { maxOutputTokens: 300 },
+        }),
+      }
+    );
+
+    const data = await geminiRes.json();
+
+    if (!geminiRes.ok) {
+      throw new Error(data?.error?.message || "Gemini request failed.");
+    }
+
+    const summary = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!summary) throw new Error("Gemini returned an empty response.");
+
+    response.json({ summary });
+  } catch (error) {
+    console.error("Analyze-photo error:", error.message);
+    response.status(500).json({ error: error.message || "Could not analyze the photo." });
+  }
+});
 
 // Health-check route
 app.get("/api/health", (request, response) => {
